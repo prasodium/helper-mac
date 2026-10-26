@@ -64,6 +64,9 @@ final class AppState {
     private var scrollTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var lastExternalApp: String?
+    /// Set by voice input so send() can shape that one question as a
+    /// Quick Answer + Detailed Explanation. Cleared on every send().
+    private var spokenQuestion = false
     private var heartbeat: Timer?
 
     static let storeURL = URL(string: "https://prasodium.github.io/helper-store")!
@@ -140,6 +143,8 @@ final class AppState {
 
     func send(_ action: QuickAction? = nil) {
         let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wasSpoken = spokenQuestion
+        spokenQuestion = false
 
         if let action, !require(action.feature) { return }
         guard !isBusy else { return }
@@ -147,8 +152,9 @@ final class AppState {
         if let attachment {
             guard require(.screenshot) else { return }
             let question = typed
-            let instruction = action.map { "\($0.instruction)\n\n\(Prompts.regionInstruction(userQuestion: question))" }
+            let baseInstruction = action.map { "\($0.instruction)\n\n\(Prompts.regionInstruction(userQuestion: question))" }
                 ?? Prompts.regionInstruction(userQuestion: question)
+            let instruction = wasSpoken ? "\(Prompts.voiceInstruction)\n\n\(baseInstruction)" : baseInstruction
             sendImage(attachment, instruction: instruction, shown: question.isEmpty ? "Selected area" : question)
             self.attachment = nil
             input = ""
@@ -162,7 +168,8 @@ final class AppState {
         }
         if action == nil, !require(.ask) { return }
 
-        let prompt = action.map { "\($0.instruction)\n\n\(typed)" } ?? typed
+        let prompt = action.map { "\($0.instruction)\n\n\(typed)" }
+            ?? (wasSpoken ? "\(Prompts.voiceInstruction)\n\n\(typed)" : typed)
         input = ""
         ask(prompt, shown: action.map { "\($0.title): \(typed)" } ?? typed)
     }
@@ -322,6 +329,7 @@ final class AppState {
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
                 input = trimmed
+                spokenQuestion = true
                 send()
             } catch {
                 report(error)
