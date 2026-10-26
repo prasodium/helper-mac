@@ -102,6 +102,18 @@ public enum Prompts {
                 + "If they do not cover it, say so briefly and answer from general knowledge."
         }
 
+        // Electron parity, chat mode only: answers about the user's own
+        // background or projects are spoken as the user, in the first
+        // person, never as "your resume" / "your project". Practice mode
+        // is the exception: there the assistant is the interviewer, not
+        // the candidate, so this rule must not apply.
+        if context.mode != .practice,
+           !((context.resumeContext ?? "").isEmpty && (context.projectsContext ?? "").isEmpty) {
+            prompt += "\n\nWhen the question is about the user's own background, experience, or own projects, "
+                + "answer in the first person, as if the user is speaking about their own work "
+                + "(\"I built…\", \"I used…\"). Never say \"your resume\", \"your project\", or \"the user's project\" for their own work."
+        }
+
         if context.mode == .practice {
             prompt += "\n\n" + practiceInstruction
         }
@@ -137,6 +149,15 @@ public enum Prompts {
         \(String(readme.prefix(6000)))
         """
     }
+
+    /// Spoken questions (microphone voice input, not system audio): the
+    /// transcript may contain filler or rambling, so find the real question
+    /// first, then answer in Electron's two-part voice shape.
+    public static let voiceInstruction = """
+    VOICE QUESTION: the text below is a spoken question and may contain filler words or rambling. \
+    Identify the actual question first, then answer in exactly two parts: **Quick Answer** (short, direct) \
+    followed by **Detailed Explanation** (fuller context).
+    """
 
     public static let screenDefault = "Look at this screen and tell me what I'm working on and anything worth noticing. Be concise."
 
