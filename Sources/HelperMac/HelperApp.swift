@@ -23,6 +23,7 @@ struct HelperApp: App {
                 Button("Analyze Screen") { Task { await appState.analyzeScreen() } }
                 Button(appState.isRecording ? "Stop Voice Input" : "Start Voice Input") { Task { await appState.toggleRecording() } }
                 Button(appState.isTranslating ? "Stop Live Translation" : "Start Live Translation") { Task { await appState.toggleTranslation() } }
+                Button(appState.isListeningToMeeting ? "Stop Listening and Answer" : "Listen to Meeting Audio") { Task { await appState.toggleMeetingAudio() } }
             }
         }
 
@@ -43,6 +44,7 @@ struct MenuBarContent: View {
         Button("Capture Screen Region") { Task { await appState.captureRegion() } }
         Button("Analyze Screen") { Task { await appState.analyzeScreen() } }
         Button(appState.isRecording ? "Stop Voice Input" : "Voice Input") { Task { await appState.toggleRecording() } }
+        Button(appState.isListeningToMeeting ? "Stop Listening and Answer" : "Listen to Meeting Audio") { Task { await appState.toggleMeetingAudio() } }
         Divider()
         SettingsLink { Text("Settings…") }
         Button("Quit Helper") { NSApp.terminate(nil) }.keyboardShortcut("q")
@@ -56,10 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             appState.start()
             Hotkeys.shared.handler = { action in
                 switch action {
-                case .toggleWindow: MainWindow.shared.toggle()
+                case .toggleWindow, .toggleWindowCommand: MainWindow.shared.toggle()
+                case .quit: NSApp.terminate(nil)
                 case .captureRegion: Task { await appState.captureRegion() }
                 case .voice: Task { await appState.toggleRecording() }
                 case .analyzeScreen: Task { await appState.analyzeScreen() }
+                case .meetingAudio: Task { await appState.toggleMeetingAudio() }
                 }
             }
             Hotkeys.shared.register()

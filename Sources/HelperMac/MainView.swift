@@ -1,8 +1,6 @@
 import HelperCore
 import SwiftUI
 
-extension Feature: Identifiable { public var id: String { rawValue } }
-
 struct MainView: View {
     @Environment(AppState.self) private var state
     @AppStorage(Pref.alwaysOnTop) private var alwaysOnTop = true
@@ -16,17 +14,7 @@ struct MainView: View {
             ComposerView()
         }
         .background(.regularMaterial)
-        .overlay { if let block = state.licenseBlock { LicenseBlockedView(result: block) } }
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Mode", selection: Binding(get: { state.mode }, set: { state.setMode($0) })) {
-                    Text("Assistant").tag(AssistantMode.chat)
-                    Label("Practice", systemImage: state.allowed(.practice) ? "person.wave.2" : "lock.fill").tag(AssistantMode.practice)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 210)
-                .help("Assistant answers your questions. Practice runs a mock interview with feedback.")
-            }
             ToolbarItemGroup(placement: .primaryAction) {
                 Toggle(isOn: $alwaysOnTop) { Image(systemName: alwaysOnTop ? "pin.fill" : "pin") }
                     .toggleStyle(.button).help("Keep Helper above other windows")
@@ -35,8 +23,6 @@ struct MainView: View {
                 SettingsLink { Image(systemName: "gearshape") }.help("Settings (⌘,)")
             }
         }
-        .sheet(item: $state.upsellFeature) { feature in UpsellSheet(feature: feature) }
-        .sheet(isPresented: $state.showLicenseEntry) { LicenseEntrySheet() }
         .background(WindowAccessor(alwaysOnTop: alwaysOnTop, opacity: opacity))
         .frame(minWidth: 500, minHeight: 520)
     }

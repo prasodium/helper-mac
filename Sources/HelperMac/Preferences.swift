@@ -20,7 +20,7 @@ enum Pref {
             speakReplies: false,
             translationLanguage: "en",
             translationSource: "system",
-            launchAtLogin: false,
+            launchAtLogin: true,
         ])
     }
 }
