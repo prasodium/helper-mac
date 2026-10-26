@@ -85,7 +85,7 @@ private struct APISettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("GitHub token (optional)") {
-                SecureField("ghp_…", text: $token)
+                SecureField("ghp-…", text: $token)
                 HStack {
                     Button("Save token") { KeychainStore.set(token.trimmingCharacters(in: .whitespaces), for: "github-token"); token = "" }
                         .disabled(token.isEmpty)
@@ -113,8 +113,11 @@ private struct LibrarySettings: View {
                         Button("Remove", role: .destructive) { Task { await state.removeFromLibrary(resume.id) } }
                     }
                 }
+                // No disabled() here on purpose: on Free, pick() shows the
+                // Pro upsell sheet via require(), like the locked composer
+                // buttons do. The old `&& false` made this look gated when
+                // it never was.
                 Button(resume == nil ? "Choose resume…" : "Replace resume…") { pick(kind: .resume, multiple: false) }
-                    .disabled(!state.allowed(.resume) && false)
             }
             Section("Documents") {
                 ForEach(state.library.filter { $0.kind == .document }) { doc in
