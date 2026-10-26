@@ -41,8 +41,11 @@ let prompt = Prompts.system(ctx)
 check("includes resume excerpts", prompt.contains("Built a compiler"))
 check("includes coding language", prompt.contains("Go"))
 check("chat mode has no interviewer instructions", !prompt.contains("MOCK INTERVIEW"))
+check("background answers are first person", prompt.contains("first person") && prompt.contains("I built"))
+check("voice answers split quick and detailed", Prompts.voiceInstruction.contains("Quick Answer") && Prompts.voiceInstruction.contains("Detailed Explanation"))
 ctx.mode = .practice
 check("practice mode asks one question at a time", Prompts.system(ctx).contains("ONE question at a time"))
+check("practice mode does not use candidate first-person voice", !Prompts.system(ctx).contains("answer in the first person"))
 check("region instruction without question", Prompts.regionInstruction(userQuestion: " ").contains("Identify"))
 check("region instruction with question", Prompts.regionInstruction(userQuestion: "why?").contains("why?"))
 
