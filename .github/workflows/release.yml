@@ -1,0 +1,29 @@
+name: Release
+# Push a tag like v1.0.0 to build the universal app and publish a DMG.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run core checks
+        run: swift run HelperChecks
+      - name: Build app and DMG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" BUILD="${GITHUB_RUN_NUMBER}" scripts/build-app.sh
+          VERSION="${GITHUB_REF_NAME#v}" scripts/make-dmg.sh
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*.dmg --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*.dmg --title "Helper ${GITHUB_REF_NAME#v}" --generate-notes
+          fi

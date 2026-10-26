@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key><string>en</string>
+    <key>CFBundleExecutable</key><string>Helper</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundleIdentifier</key><string>com.helper.mac</string>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundleName</key><string>Helper</string>
+    <key>CFBundleDisplayName</key><string>Helper</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>__VERSION__</string>
+    <key>CFBundleVersion</key><string>__BUILD__</string>
+    <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Helper uses the microphone for voice questions and, if you choose, to translate conversations live.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Helper listens to your Mac's audio to show live translated subtitles when you turn translation on.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Helper looks at your screen only when you ask it to analyze it or capture a region.</string>
+    <key>NSHumanReadableCopyright</key><string>© Helper</string>
+</dict>
+</plist>
