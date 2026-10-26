@@ -33,9 +33,13 @@ echo "  architectures: $(lipo -archs "$APP/Contents/MacOS/Helper")"
 sed -e "s/__VERSION__/${VERSION}/" -e "s/__BUILD__/${BUILD}/" Resources/Info.plist > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-echo "▸ Rendering icon"
+echo "▸ Building icon"
 ICONSET="$(mktemp -d)/AppIcon.iconset"
-swift scripts/make-icon.swift "$ICONSET" 2>/dev/null
+mkdir -p "$ICONSET"
+for base in 16 32 128 256 512; do
+  sips -z $base $base Resources/AppIcon.png --out "$ICONSET/icon_${base}x${base}.png" >/dev/null
+  sips -z $((base*2)) $((base*2)) Resources/AppIcon.png --out "$ICONSET/icon_${base}x${base}@2x.png" >/dev/null
+done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
 echo "▸ Signing"

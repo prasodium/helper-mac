@@ -64,7 +64,7 @@ Sources/
   HelperCore/    UI-free logic: OpenAI client, RAG, license, image stitching, translation
   HelperMac/     SwiftUI + AppKit app: windows, capture, audio, hotkeys, settings
   HelperChecks/  dependency-free test runner (XCTest needs full Xcode)
-scripts/         app bundle, DMG, icon, Gatekeeper helper
+scripts/         app bundle, DMG, Gatekeeper helper
 ```
 
 `Local.swift` is a tiny stand-in for `@State` so the project builds without Xcode's SwiftUI macro plugin.
