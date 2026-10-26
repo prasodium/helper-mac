@@ -46,7 +46,7 @@ check("voice answers split quick and detailed", Prompts.voiceInstruction.contain
 ctx.mode = .practice
 check("practice mode asks one question at a time", Prompts.system(ctx).contains("ONE question at a time"))
 check("practice mode does not use candidate first-person voice", !Prompts.system(ctx).contains("answer in the first person"))
-check("region instruction without question", Prompts.regionInstruction(userQuestion: " ").contains("Identify"))
+check("region instruction without question", Prompts.regionInstruction(userQuestion: " ").contains("Describe what you see"))
 check("region instruction with question", Prompts.regionInstruction(userQuestion: "why?").contains("why?"))
 
 // MARK: Chunking

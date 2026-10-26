@@ -10,23 +10,40 @@ struct ComposerView: View {
         VStack(spacing: 8) {
             if state.isTranslating { TranslationPanel() }
             if state.isScrollCapturing { ScrollBanner() }
-
+            
+            // Attachment preview
             if let image = state.attachment {
                 HStack(spacing: 10) {
-                    Image(decorative: image, scale: 1).resizable().scaledToFit()
-                        .frame(height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
+                    Image(decorative: image, scale: 1)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                     Text("Selected area attached. Add a question or just send.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Spacer()
-                    Button { state.attachment = nil } label: { Image(systemName: "xmark.circle.fill") }
-                        .buttonStyle(.borderless).foregroundStyle(.secondary)
+                    Button { state.attachment = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
                 }
                 .padding(8)
                 .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-
+            
+            // MARK: - Mode picker
+            Picker("Mode", selection: $state.mode) {
+                ForEach(AssistantMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 4)
+            
             QuickActionsBar()
-
+            
             HStack(alignment: .bottom, spacing: 8) {
                 TextField(placeholder, text: $state.input, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -34,43 +51,72 @@ struct ComposerView: View {
                     .focused($focused)
                     .onSubmit { state.send() }
                     .padding(.vertical, 6)
-
+                
                 HStack(spacing: 2) {
-                    IconButton(symbol: state.isRecording ? "stop.circle.fill" : "mic", help: "Voice input (⌃⌥V)",
-                               tint: state.isRecording ? .red : nil, locked: !state.allowed(.voice)) {
+                    IconButton(
+                        symbol: state.isRecording ? "stop.circle.fill" : "mic",
+                        help: "Voice input (⌃⌥V)",
+                        tint: state.isRecording ? .red : nil,
+                        locked: !state.allowed(.voice)
+                    ) {
                         Task { await state.toggleRecording() }
                     }
-                    IconButton(symbol: "viewfinder", help: "Capture a screen region (⌃⌥S)", locked: !state.allowed(.screenshot)) {
+                    
+                    IconButton(
+                        symbol: "viewfinder",
+                        help: "Capture a screen region (⌃⌥S)",
+                        locked: !state.allowed(.screenshot)
+                    ) {
                         Task { await state.captureRegion() }
                     }
-                    IconButton(symbol: state.isScrollCapturing ? "checkmark.circle.fill" : "arrow.up.and.down.text.horizontal",
-                               help: state.isScrollCapturing ? "Finish scrolled capture and ask" : "Capture a long page while you scroll",
-                               tint: state.isScrollCapturing ? .green : nil, locked: !state.allowed(.screenshot)) {
+                    
+                    IconButton(
+                        symbol: state.isScrollCapturing ? "checkmark.circle.fill" : "arrow.up.and.down.text.horizontal",
+                        help: state.isScrollCapturing ? "Finish scrolled capture and ask" : "Capture a long page while you scroll",
+                        tint: state.isScrollCapturing ? .green : nil,
+                        locked: !state.allowed(.screenshot)
+                    ) {
                         Task { await state.toggleScrollCapture() }
                     }
-                    IconButton(symbol: "captions.bubble", help: state.isTranslating ? "Stop live translation" : "Live-translate meeting audio",
-                               tint: state.isTranslating ? .accentColor : nil, locked: !state.allowed(.translation)) {
+                    
+                    IconButton(
+                        symbol: "captions.bubble",
+                        help: state.isTranslating ? "Stop live translation" : "Live-translate meeting audio",
+                        tint: state.isTranslating ? .accentColor : nil,
+                        locked: !state.allowed(.translation)
+                    ) {
                         Task { await state.toggleTranslation() }
                     }
+                    
                     if state.isBusy {
-                        Button { state.stop() } label: { Image(systemName: "stop.circle.fill").font(.title2) }
-                            .buttonStyle(.borderless).help("Stop")
+                        Button { state.stop() } label: {
+                            Image(systemName: "stop.circle.fill").font(.title2)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Stop")
                     } else {
-                        Button { state.send() } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }
-                            .buttonStyle(.borderless)
-                            .keyboardShortcut(.return, modifiers: .command)
-                            .disabled(state.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && state.attachment == nil)
-                            .help("Send (⏎)")
+                        Button { state.send() } label: {
+                            Image(systemName: "arrow.up.circle.fill").font(.title2)
+                        }
+                        .buttonStyle(.borderless)
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .disabled(state.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && state.attachment == nil)
+                        .help("Send (⏎)")
                     }
                 }
             }
-            .padding(.horizontal, 12).padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.separator))
-
+            
             HStack {
-                Circle().fill(state.isBusy ? .orange : .green).frame(width: 7, height: 7)
-                Text(state.status).font(.caption).foregroundStyle(.secondary)
+                Circle()
+                    .fill(state.isBusy ? .orange : .green)
+                    .frame(width: 7, height: 7)
+                Text(state.status)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
         }
@@ -79,10 +125,12 @@ struct ComposerView: View {
     }
 
     private var placeholder: String {
-        state.mode == .practice ? "Type your answer…" : "Ask anything, or paste code…"
+        switch state.mode {
+        case .chat: "Ask anything…"
+        case .practice: "Answer the interviewer…"
+        }
     }
 }
-
 private struct IconButton: View {
     let symbol: String
     let help: String
