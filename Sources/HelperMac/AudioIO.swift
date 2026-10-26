@@ -7,12 +7,14 @@ enum AudioError: LocalizedError {
     case micDenied
     case recordingFailed
     case emptyRecording
+    case noMeetingAudio
 
     var errorDescription: String? {
         switch self {
         case .micDenied: "Helper needs Microphone permission. Open System Settings > Privacy & Security > Microphone and turn Helper on."
         case .recordingFailed: "Couldn't start recording."
         case .emptyRecording: "Didn't catch anything. Try again."
+        case .noMeetingAudio: "Didn't hear any speech. Make sure the audio is playing from this Mac (not through a headset-only app), and that Helper has Screen Recording permission."
         }
     }
 }
@@ -72,6 +74,33 @@ final class SpeechPlayer {
     }
 
     func stop() { player?.stop(); player = nil }
+}
+
+/// Collects PCM from the capture queue up to a size limit; read back on the main actor when listening ends.
+final class PCMAccumulator: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+    private var reachedLimit = false
+    private let limit: Int
+
+    init(limit: Int) { self.limit = limit }
+
+    /// Returns true exactly once: when this chunk fills the buffer.
+    func append(_ chunk: Data) -> Bool {
+        lock.withLock {
+            if data.count < limit { data.append(chunk.prefix(limit - data.count)) }
+            guard data.count >= limit, !reachedLimit else { return false }
+            reachedLimit = true
+            return true
+        }
+    }
+
+    func take() -> Data {
+        lock.withLock {
+            defer { data = Data() }
+            return data
+        }
+    }
 }
 
 /// Anything that feeds 24 kHz mono PCM16 to the live translator.

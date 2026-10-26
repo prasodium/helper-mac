@@ -43,11 +43,34 @@ check("includes coding language", prompt.contains("Go"))
 check("chat mode has no interviewer instructions", !prompt.contains("MOCK INTERVIEW"))
 check("background answers are first person", prompt.contains("first person") && prompt.contains("I built"))
 check("voice answers split quick and detailed", Prompts.voiceInstruction.contains("Quick Answer") && Prompts.voiceInstruction.contains("Detailed Explanation"))
-ctx.mode = .practice
-check("practice mode asks one question at a time", Prompts.system(ctx).contains("ONE question at a time"))
-check("practice mode does not use candidate first-person voice", !Prompts.system(ctx).contains("answer in the first person"))
+ctx.mode = .test
+check("test mode answers directly", Prompts.system(ctx).contains("TEST MODE"))
+check("test mode keeps first-person background answers", Prompts.system(ctx).contains("first person"))
+ctx.mode = .interview
+let interviewPrompt = Prompts.system(ctx)
+check("interview mode asks for spoken-style answers", interviewPrompt.contains("say your answer out loud") && interviewPrompt.contains("No bullet lists"))
+check("interview mode keeps first-person background answers", interviewPrompt.contains("first person"))
+check("interview mode is not a mock interviewer", !interviewPrompt.contains("MOCK INTERVIEW"))
+check("every mode has a title", AssistantMode.allCases.allSatisfy { !$0.title.isEmpty } && AssistantMode.allCases.count == 3)
+check("meeting audio answers split quick and detailed", Prompts.meetingAudioInstruction.contains("Quick Answer") && Prompts.meetingAudioInstruction.contains("Detailed Explanation"))
+check("meeting audio handles transcripts with no question", Prompts.meetingAudioInstruction.contains("If no question"))
 check("region instruction without question", Prompts.regionInstruction(userQuestion: " ").contains("Describe what you see"))
 check("region instruction with question", Prompts.regionInstruction(userQuestion: "why?").contains("why?"))
+
+// MARK: PCM
+
+section("PCM")
+let samples: [Int16] = [0, 1000, -2000, 300]
+let pcmBytes = samples.withUnsafeBufferPointer { Data(buffer: $0) }
+let wav = PCM.wavData(pcm16: pcmBytes, sampleRate: 24000)
+check("wav has RIFF/WAVE header", wav.prefix(4) == Data("RIFF".utf8) && wav.subdata(in: 8..<12) == Data("WAVE".utf8))
+check("wav is header plus samples", wav.count == 44 + pcmBytes.count)
+check("wav records the sample rate", wav.subdata(in: 24..<28) == Data([0xC0, 0x5D, 0x00, 0x00]))
+check("wav data chunk holds the samples", wav.suffix(pcmBytes.count) == pcmBytes)
+check("peak finds the loudest sample", PCM.peak(pcm16: pcmBytes) == 2000)
+check("silence is detected", PCM.isSilent(pcm16: Data(repeating: 0, count: 4800)))
+check("speech-level audio is not silent", !PCM.isSilent(pcm16: pcmBytes))
+check("empty audio counts as silent", PCM.isSilent(pcm16: Data()))
 
 // MARK: Chunking
 

@@ -21,7 +21,7 @@ private struct GeneralSettings: View {
     @AppStorage(Pref.codingLanguage) private var codingLanguage = "auto"
     @AppStorage(Pref.model) private var model = "gpt-4o"
     @AppStorage(Pref.speakReplies) private var speakReplies = false
-    @AppStorage(Pref.launchAtLogin) private var launchAtLogin = false
+    @AppStorage(Pref.launchAtLogin) private var launchAtLogin = true
 
     var body: some View {
         Form {
@@ -112,10 +112,6 @@ private struct LibrarySettings: View {
                         Button("Remove", role: .destructive) { Task { await state.removeFromLibrary(resume.id) } }
                     }
                 }
-                // No disabled() here on purpose: on Free, pick() shows the
-                // Pro upsell sheet via require(), like the locked composer
-                // buttons do. The old `&& false` made this look gated when
-                // it never was.
                 Button(resume == nil ? "Choose resume…" : "Replace resume…") { pick(kind: .resume, multiple: false) }
             }
             Section("Documents") {

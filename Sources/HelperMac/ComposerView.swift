@@ -10,7 +10,7 @@ struct ComposerView: View {
         VStack(spacing: 8) {
             if state.isTranslating { TranslationPanel() }
             if state.isScrollCapturing { ScrollBanner() }
-            
+
             // Attachment preview
             if let image = state.attachment {
                 HStack(spacing: 10) {
@@ -32,18 +32,26 @@ struct ComposerView: View {
                 .padding(8)
                 .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            
-            // MARK: - Mode picker
-            Picker("Mode", selection: $state.mode) {
-                ForEach(AssistantMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+
+            // MARK: - Mode bar: Test / Interview; click the active one again to return to normal
+            HStack(spacing: 6) {
+                ForEach([AssistantMode.test, .interview]) { mode in
+                    Button { state.toggleMode(mode) } label: {
+                        Text(mode.title)
+                            .font(.callout.weight(state.mode == mode ? .semibold : .regular))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                            .background(state.mode == mode ? Color.accentColor.opacity(0.25) : Color.secondary.opacity(0.1),
+                                        in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .help(mode == .test ? "Test Mode: fast, direct answers. Click again for normal." : "Interview Mode: natural, spoken first-person answers. Click again for normal.")
                 }
             }
-            .pickerStyle(.segmented)
             .padding(.horizontal, 4)
-            
+
             QuickActionsBar()
-            
+
             HStack(alignment: .bottom, spacing: 8) {
                 TextField(placeholder, text: $state.input, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -51,7 +59,7 @@ struct ComposerView: View {
                     .focused($focused)
                     .onSubmit { state.send() }
                     .padding(.vertical, 6)
-                
+
                 HStack(spacing: 2) {
                     IconButton(
                         symbol: state.isRecording ? "stop.circle.fill" : "mic",
@@ -61,7 +69,7 @@ struct ComposerView: View {
                     ) {
                         Task { await state.toggleRecording() }
                     }
-                    
+
                     IconButton(
                         symbol: "viewfinder",
                         help: "Capture a screen region (⌃⌥S)",
@@ -69,7 +77,7 @@ struct ComposerView: View {
                     ) {
                         Task { await state.captureRegion() }
                     }
-                    
+
                     IconButton(
                         symbol: state.isScrollCapturing ? "checkmark.circle.fill" : "arrow.up.and.down.text.horizontal",
                         help: state.isScrollCapturing ? "Finish scrolled capture and ask" : "Capture a long page while you scroll",
@@ -78,7 +86,7 @@ struct ComposerView: View {
                     ) {
                         Task { await state.toggleScrollCapture() }
                     }
-                    
+
                     IconButton(
                         symbol: "captions.bubble",
                         help: state.isTranslating ? "Stop live translation" : "Live-translate meeting audio",
@@ -87,7 +95,16 @@ struct ComposerView: View {
                     ) {
                         Task { await state.toggleTranslation() }
                     }
-                    
+
+                    IconButton(
+                        symbol: state.isListeningToMeeting ? "stop.circle.fill" : "ear",
+                        help: state.isListeningToMeeting ? "Stop listening and answer (⌃⌥M)" : "Listen to meeting audio, then answer the question asked (⌃⌥M)",
+                        tint: state.isListeningToMeeting ? .red : nil,
+                        locked: !state.allowed(.voice)
+                    ) {
+                        Task { await state.toggleMeetingAudio() }
+                    }
+
                     if state.isBusy {
                         Button { state.stop() } label: {
                             Image(systemName: "stop.circle.fill").font(.title2)
@@ -109,7 +126,7 @@ struct ComposerView: View {
             .padding(.vertical, 6)
             .background(.background.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.separator))
-            
+
             HStack {
                 Circle()
                     .fill(state.isBusy ? .orange : .green)
@@ -126,11 +143,13 @@ struct ComposerView: View {
 
     private var placeholder: String {
         switch state.mode {
-        case .chat: "Ask anything…"
-        case .practice: "Answer the interviewer…"
+        case .chat:     "Ask anything…"
+        case .test:     "Paste your test question…"
+        case .interview: "Ask a question to get a spoken-style answer…"
         }
     }
 }
+
 private struct IconButton: View {
     let symbol: String
     let help: String

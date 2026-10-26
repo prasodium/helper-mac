@@ -2,17 +2,17 @@ import Foundation
 
 /// How the assistant behaves for the whole conversation.
 public enum AssistantMode: String, Sendable, CaseIterable, Identifiable {
-    /// Everyday assistant: answers questions, explains code, debugs.
     case chat
-    /// Mock interview: the assistant plays the interviewer so the user can practise.
-    case practice
+    case test
+    case interview
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
         case .chat: "Chat"
-        case .practice: "Practice"
+        case .test: "Test"
+        case .interview: "Interview"
         }
     }
 }
@@ -102,19 +102,18 @@ public enum Prompts {
             prompt += "\n\nRelevant excerpts from documents the user added to their library:\n\n\(docs)\n\nIf these answer the question, use them and name the document (\"According to X...\"). If they do not cover it, say so briefly and answer from general knowledge."
         }
 
-        // Electron parity, chat mode only: answers about the user's own
-        // background or projects are spoken as the user, in the first
-        // person, never as "your resume" / "your project". Practice mode
-        // is the exception: there the assistant is the interviewer, not
-        // the candidate, so this rule must not apply.
-        if context.mode != .practice, !((context.resumeContext ?? "").isEmpty && (context.projectsContext ?? "").isEmpty) {
+        // Answers about the user's own background or projects are spoken as the user,
+        // in the first person, never as "your resume" / "your project".
+        if !((context.resumeContext ?? "").isEmpty && (context.projectsContext ?? "").isEmpty) {
             prompt += "\n\nWhen the question is about the user's own background, experience, or own projects, answer in the first person, as if the user is speaking about their own work (\"I built…\", \"I used…\"). Never say \"your resume\", \"your project\", or \"the user's project\" for their own work."
         }
 
         // MARK: - Mode-specific instructions
         switch context.mode {
-        case .practice:
-            prompt += "\n\n" + practiceInstruction
+        case .test:
+            prompt += "\n\n" + testInstruction
+        case .interview:
+            prompt += "\n\n" + interviewInstruction
         case .chat:
             break // The default system prompt is enough
         }
@@ -127,13 +126,17 @@ public enum Prompts {
         return prompt
     }
 
-    /// Mock-interview coach: the assistant interviews the user and gives feedback.
-    public static let practiceInstruction = """
-    MOCK INTERVIEW MODE: you are a friendly but rigorous interviewer helping the user practise. Ask exactly ONE question at a time and wait for their answer. Tailor questions to their resume and projects when excerpts are provided, and mix behavioural, technical and (when appropriate) coding questions. After each answer, give brief, specific feedback in this shape: **What worked**, **What to improve**, and, if useful, **A stronger way to say it** (a short example). Then ask the next question. Do not write answers for the user before they have tried; if they ask for a model answer, give one after feedback.
+    /// Test mode: timed assessments. Direct answers, no filler.
+    public static let testInstruction = """
+    TEST MODE: Answer directly. No preamble, no filler, no apologies.
+    For coding problems, output complete, runnable, ready-to-submit code.
+    For multiple-choice questions, begin with "Answer: X" on its own line, followed by at most one sentence of justification.
     """
 
-    /// First message of a practice session.
-    public static let practiceKickoff = "Let's start a mock interview. Introduce yourself in one sentence and ask your first question."
+    /// Interview mode: answers written to be said out loud.
+    public static let interviewInstruction = """
+    INTERVIEW MODE: the user will say your answer out loud, so write it the way a confident person actually speaks: natural, complete sentences in a conversational tone. No bullet lists, headings, tables, code blocks or markdown emphasis. Lead with the point, add one or two sentences of support, and keep it short enough to say in under a minute unless asked for more. For technical questions, explain the idea in words (what you would do and why) instead of pasting code. When the question is about the user's own background or projects, answer in the first person using the resume and project excerpts provided.
+    """
 
     public static func projectSummary(owner: String, repo: String, description: String?, language: String?, topics: [String], readme: String) -> String {
         """
@@ -151,6 +154,12 @@ public enum Prompts {
     /// in the Electron app's two-part voice format.
     public static let voiceInstruction = """
     VOICE QUESTION: the text below is a spoken question and may contain filler words or rambling. Identify the actual question first, then answer in exactly two parts: **Quick Answer** (short, direct) followed by **Detailed Explanation** (fuller context).
+    """
+
+    /// Audio captured from the Mac's speakers (a call, a lecture, a video): other people talking,
+    /// several speakers, no speaker labels.
+    public static let meetingAudioInstruction = """
+    MEETING AUDIO: the transcript below was captured from the computer's speakers. It may contain several speakers without labels, filler words, crosstalk and transcription mistakes. Find the specific question or request that was put to the user, then answer in exactly two parts: **Quick Answer** (short, direct) followed by **Detailed Explanation** (fuller context). If no question or request was asked, say so in one sentence and summarize what was discussed in two or three short bullets.
     """
 
     public static let screenDefault = "Look at this screen and tell me what I'm working on and anything worth noticing. Be concise."

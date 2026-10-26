@@ -84,14 +84,16 @@ private struct EmptyState: View {
     private var emptyIcon: String {
         switch state.mode {
         case .chat: "sparkles"
-        case .practice: "person.wave.2"
+        case .test: "checklist"
+        case .interview: "bubble.left.and.text.bubble.right"
         }
     }
     
     private var emptyTitle: String {
         switch state.mode {
         case .chat: "How can I help?"
-        case .practice: "Mock interview"
+        case .test: "Test mode"
+        case .interview: "Interview mode"
         }
     }
 }

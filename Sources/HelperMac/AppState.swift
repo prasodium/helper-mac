@@ -25,24 +25,19 @@ final class AppState {
     var isBusy = false
     var status = "Ready"
     var mode: AssistantMode = .chat
+    /// True while a meeting app (Zoom, Teams, …) is the frontmost app.
+    var isMeetingActive = false
 
     // MARK: Capture / audio
     var isRecording = false
     var isScrollCapturing = false
     var scrollFrameCount = 0
     var isTranslating = false
+    var isListeningToMeeting = false
     var subtitles = ""
     var sourceTranscript = ""
 
     // MARK: Account
-    var plan: Plan = .free
-    var licenseBlock: AccessResult?
-    var upsellFeature: Feature?
-    var showLicenseEntry = false
-    var licenseMessage = ""
-    var licenseBusy = false
-    var licenseKeyPreview = ""
-    var licenseProduct = ""
     var hasAPIKey = false
     var apiKeyPreview = ""
 
@@ -52,39 +47,43 @@ final class AppState {
     var libraryStatus = ""
 
     // MARK: Services
-    let license = LicenseManager()
     let knowledge = KnowledgeBase()
     let projectStore = ProjectStore()
     private let recorder = VoiceRecorder()
     private let speaker = SpeechPlayer()
     private let selector = RegionSelector()
+    private let meetingDetector = MeetingDetector()
     private var translator: LiveTranslator?
     private var audioSource: TranslationAudioSource?
+    private var meetingAudio: SystemAudioCapture?
+    private var meetingPCM: PCMAccumulator?
     private var scrollSession: ScrollCaptureSession?
     private var scrollTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var lastExternalApp: String?
+    private var lastExternalRunningApp: NSRunningApplication?
     /// Set by voice input so send() can shape that one question as a
     /// Quick Answer + Detailed Explanation. Cleared on every send().
     private var spokenQuestion = false
-    private var heartbeat: Timer?
-
-    static let storeURL = URL(string: "https://prasodium.github.io/helper-store")!
 
     // MARK: Lifecycle
 
     init() {
         loadHistory()
         refreshKeyStatus()
-        plan = license.plan
-        refreshLicenseDetails()
         observeFrontmostApp()
+        startMeetingDetection()
         Task { await refreshLibrary() }
         projects = projectStore.all()
     }
 
-    /// Everything is free, so there is nothing to verify with a server.
-    func start() {}
+    func start() {
+        // Launch at login is on by default; register the login item once when running as an installed app.
+        if Bundle.main.bundleIdentifier != nil, UserDefaults.standard.bool(forKey: Pref.launchAtLogin),
+           SMAppService.mainApp.status == .notRegistered {
+            setLaunchAtLogin(true)
+        }
+    }
 
     private func observeFrontmostApp() {
         let own = Bundle.main.bundleIdentifier
@@ -92,23 +91,45 @@ final class AppState {
             guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   app.bundleIdentifier != own else { return }
             let name = app.localizedName
-            Task { @MainActor in self?.lastExternalApp = name }
+            Task { @MainActor in
+                self?.lastExternalApp = name
+                self?.lastExternalRunningApp = app
+            }
         }
         let front = NSWorkspace.shared.frontmostApplication
-        if front?.bundleIdentifier != own { lastExternalApp = front?.localizedName }
+        if front?.bundleIdentifier != own {
+            lastExternalApp = front?.localizedName
+            lastExternalRunningApp = front
+        }
     }
 
-    // MARK: Plan gating
+    // MARK: Meeting detection
 
-    func allowed(_ feature: Feature) -> Bool { PlanPolicy.isAllowed(plan, feature) }
+    private func startMeetingDetection() {
+        meetingDetector.start { [weak self] isMeeting in
+            guard let self else { return }
+            isMeetingActive = isMeeting
+            // Don't overwrite a busy status such as "Listening…" or "Translating live…".
+            if status == "Ready" || status == "In a meeting" { status = idleStatus }
+        }
+    }
 
-    /// Returns true if the feature may be used; otherwise shows the upgrade sheet.
+    /// What the status line says when nothing else is going on.
+    private var idleStatus: String { isMeetingActive ? "In a meeting" : "Ready" }
+
+    /// The app (and window title, when Accessibility allows it) the user was working in before Helper.
+    private func externalAppContext() -> String? {
+        if let app = lastExternalRunningApp, let described = ActiveWindowContext.describe(app) { return described }
+        return lastExternalApp
+    }
+
+    // MARK: Feature gating
+
+    /// Helper is Pro by default: no license key, no license check, every feature unlocked.
+    func allowed(_ feature: Feature) -> Bool { PlanPolicy.isAllowed(.pro, feature) }
+
     @discardableResult
-    func require(_ feature: Feature) -> Bool {
-        if allowed(feature) { return true }
-        upsellFeature = feature
-        return false
-    }
+    func require(_ feature: Feature) -> Bool { allowed(feature) }
 
     // MARK: API client
 
@@ -187,14 +208,12 @@ final class AppState {
         streamTask = Task {
             do {
                 var context = PromptContext()
-                context.appName = lastExternalApp
+                context.appName = ActiveWindowContext.current() ?? externalAppContext()
                 context.mode = mode
                 context.codingLanguage = UserDefaults.standard.string(forKey: Pref.codingLanguage) ?? "auto"
-                if plan == .pro {
-                    context.resumeContext = try? await knowledge.relevantContext(for: prompt, kind: .resume, topK: 4, client: openai)
-                    context.documentContext = try? await knowledge.relevantContext(for: prompt, kind: .document, topK: 5, client: openai)
-                    context.projectsContext = projectStore.promptContext()
-                }
+                context.resumeContext = try? await knowledge.relevantContext(for: prompt, kind: .resume, topK: 4, client: openai)
+                context.documentContext = try? await knowledge.relevantContext(for: prompt, kind: .document, topK: 5, client: openai)
+                context.projectsContext = projectStore.promptContext()
 
                 var chat = [ChatMessage(role: .system, text: Prompts.system(context))]
                 for entry in history where !entry.isError && !entry.text.isEmpty {
@@ -218,7 +237,7 @@ final class AppState {
                 update(replyID, text: error.localizedDescription, isError: true)
             }
             isBusy = false
-            status = "Ready"
+            status = idleStatus
             saveHistory()
         }
     }
@@ -226,7 +245,7 @@ final class AppState {
     func stop() {
         streamTask?.cancel()
         isBusy = false
-        status = "Ready"
+        status = idleStatus
     }
 
     private func append(_ delta: String, to id: UUID) {
@@ -267,7 +286,7 @@ final class AppState {
             let (image, screen) = try await ScreenCapture.captureDisplay()
             guard let screen = screen ?? NSScreen.main else { return }
             let cropped = await selector.select(from: image, on: screen)
-            status = "Ready"
+            status = idleStatus
             if let cropped {
                 attachment = cropped
                 NSApp.activate(ignoringOtherApps: true)
@@ -284,7 +303,7 @@ final class AppState {
             isScrollCapturing = false
             let session = scrollSession
             scrollSession = nil
-            guard let composite = session?.finish() else { status = "Ready"; return }
+            guard let composite = session?.finish() else { status = idleStatus; return }
             let typed = input.trimmingCharacters(in: .whitespacesAndNewlines)
             input = ""
             let instruction = typed.isEmpty
@@ -321,7 +340,7 @@ final class AppState {
             do {
                 let audio = try recorder.stop()
                 let text = try await client().transcribe(audio: audio)
-                status = "Ready"
+                status = idleStatus
                 let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
                 input = trimmed
@@ -350,11 +369,81 @@ final class AppState {
 
     func stopSpeaking() { speaker.stop() }
 
+    // MARK: Meeting audio
+
+    private static let meetingSampleRate = 24000
+    /// Whisper accepts 25 MB per file; 5 minutes of 24 kHz mono PCM16 is ~14 MB.
+    private static let meetingMaxSeconds = 300
+
+    /// First call starts listening to what the Mac is playing; the second stops, transcribes it,
+    /// finds the question that was asked and answers it (Quick Answer + Detailed Explanation).
+    func toggleMeetingAudio() async {
+        if isListeningToMeeting { await finishMeetingAudio(); return }
+        guard require(.voice) else { return }
+        guard !isTranslating else {
+            report(NSError(domain: "Helper", code: 0, userInfo: [NSLocalizedDescriptionKey: "Stop live translation first. It is already listening to the meeting audio."]))
+            return
+        }
+        guard client().hasKey else { report(OpenAIError.missingKey); return }
+
+        let accumulator = PCMAccumulator(limit: Self.meetingSampleRate * 2 * Self.meetingMaxSeconds)
+        let source = SystemAudioCapture()
+        source.onPCM = { [weak self] chunk in
+            // The buffer filled up: finish on our own instead of silently dropping the rest.
+            if accumulator.append(chunk) {
+                Task { @MainActor in await self?.finishMeetingAudio() }
+            }
+        }
+        do {
+            try await source.start()
+            meetingAudio = source
+            meetingPCM = accumulator
+            isListeningToMeeting = true
+            status = "Listening to meeting audio…"
+        } catch {
+            source.stop()
+            report(error)
+        }
+    }
+
+    private func finishMeetingAudio() async {
+        guard isListeningToMeeting else { return }
+        isListeningToMeeting = false
+        meetingAudio?.stop()
+        meetingAudio = nil
+        let pcm = meetingPCM?.take() ?? Data()
+        meetingPCM = nil
+
+        guard !PCM.isSilent(pcm16: pcm) else { report(AudioError.noMeetingAudio); return }
+        status = "Transcribing…"
+        do {
+            let wav = PCM.wavData(pcm16: pcm, sampleRate: Self.meetingSampleRate)
+            let transcript = try await client().transcribe(audio: wav, fileName: "meeting.wav", mimeType: "audio/wav")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !transcript.isEmpty else { throw AudioError.noMeetingAudio }
+
+            // Let an answer that is still streaming finish before asking the next question.
+            var waited = 0
+            while isBusy, waited < 150 { try? await Task.sleep(for: .milliseconds(200)); waited += 1 }
+
+            status = idleStatus
+            let seconds = pcm.count / (Self.meetingSampleRate * 2)
+            let preview = transcript.count > 280 ? String(transcript.prefix(280)) + "…" : transcript
+            ask("\(Prompts.meetingAudioInstruction)\n\nTranscript:\n\(transcript)", shown: "Meeting audio (\(seconds)s): \u{201C}\(preview)\u{201D}")
+        } catch {
+            report(error)
+        }
+    }
+
     // MARK: Live translation
 
     func toggleTranslation() async {
         if isTranslating { stopTranslation(); return }
         guard require(.translation) else { return }
+        guard !isListeningToMeeting else {
+            report(NSError(domain: "Helper", code: 0, userInfo: [NSLocalizedDescriptionKey: "Finish listening to the meeting audio first (click the ear button again), then start translation."]))
+            return
+        }
         let openai = client()
         guard openai.hasKey else { report(OpenAIError.missingKey); return }
 
@@ -385,7 +474,7 @@ final class AppState {
         audioSource = nil
         translator = nil
         isTranslating = false
-        status = "Ready"
+        status = idleStatus
     }
 
     private func handleTranslation(_ event: TranslationEvent) {
@@ -397,16 +486,11 @@ final class AppState {
         }
     }
 
-    // MARK: Practice mode
+    // MARK: Mode bar
 
-    func setMode(_ new: AssistantMode) {
-        guard new != mode else { return }
-        if new == .practice, !require(.practice) { return }
-        stop()
-        mode = new
-        messages.removeAll()
-        saveHistory()
-        if new == .practice { ask(Prompts.practiceKickoff, shown: "Start a mock interview") }
+    /// Test and Interview are toggles: clicking the active one again goes back to normal chat.
+    func toggleMode(_ new: AssistantMode) {
+        mode = (mode == new) ? .chat : new
     }
 
     // MARK: Library (resume, documents, projects)
@@ -459,56 +543,6 @@ final class AppState {
         projects = projectStore.all()
     }
 
-    // MARK: License
-
-    func refreshLicenseDetails() {
-        licenseKeyPreview = license.keyPreview
-        licenseProduct = license.productName
-        plan = license.plan
-    }
-
-    func verifyLicense() async {
-        let result = await license.checkAccess()
-        if result.allowed {
-            licenseBlock = nil
-            plan = result.plan
-        } else {
-            plan = .free
-            licenseBlock = result
-        }
-        refreshLicenseDetails()
-    }
-
-    func activate(_ key: String) async {
-        licenseBusy = true
-        licenseMessage = ""
-        let result = await license.activate(key)
-        licenseBusy = false
-        if result.ok {
-            licenseBlock = nil
-            showLicenseEntry = false
-            upsellFeature = nil
-            refreshLicenseDetails()
-        } else {
-            licenseMessage = result.message
-        }
-    }
-
-    func deactivate() async {
-        await license.deactivate()
-        licenseBlock = nil
-        refreshLicenseDetails()
-    }
-
-    func copyLicenseKey() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(license.storedKey, forType: .string)
-    }
-
-    func openStore(_ path: String = "#pricing") {
-        NSWorkspace.shared.open(URL(string: Self.storeURL.absoluteString + "/" + path)!)
-    }
-
     // MARK: Launch at login
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -522,7 +556,7 @@ final class AppState {
     // MARK: Errors & history
 
     func report(_ error: Error) {
-        status = "Ready"
+        status = idleStatus
         isBusy = false
         messages.append(.init(role: .assistant, text: error.localizedDescription, isError: true))
     }

@@ -9,7 +9,7 @@ public enum Plan: String, Codable, Sendable {
 
 public enum Feature: String, CaseIterable, Sendable {
     case ask, mcq, summarize, debug, explain, solve, brightness
-    case documents, resume, githubProjects, practice
+    case documents, resume, githubProjects
     case screenshot, voice, translation
 
     public var label: String {
@@ -24,7 +24,6 @@ public enum Feature: String, CaseIterable, Sendable {
         case .documents: "Document library"
         case .resume: "Resume"
         case .githubProjects: "GitHub projects"
-        case .practice: "Mock interview practice"
         case .screenshot: "Screen capture"
         case .voice: "Voice input"
         case .translation: "Live translation"
