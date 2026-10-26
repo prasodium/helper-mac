@@ -83,12 +83,8 @@ final class AppState {
         projects = projectStore.all()
     }
 
-    func start() {
-        Task { await verifyLicense() }
-        heartbeat = Timer.scheduledTimer(withTimeInterval: LicenseManager.heartbeatInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in await self?.verifyLicense() }
-        }
-    }
+    /// Everything is free, so there is nothing to verify with a server.
+    func start() {}
 
     private func observeFrontmostApp() {
         let own = Bundle.main.bundleIdentifier

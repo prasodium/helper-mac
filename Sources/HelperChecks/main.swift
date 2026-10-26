@@ -20,8 +20,8 @@ func section(_ name: String) { print("\n\(name)") }
 section("Plans")
 check("free can ask", PlanPolicy.isAllowed(.free, .ask))
 check("free can debug", PlanPolicy.isAllowed(.free, .debug))
-check("free cannot translate", !PlanPolicy.isAllowed(.free, .translation))
-check("free cannot capture", !PlanPolicy.isAllowed(.free, .screenshot))
+check("free can translate (no paywall)", PlanPolicy.isAllowed(.free, .translation))
+check("free can capture (no paywall)", PlanPolicy.isAllowed(.free, .screenshot))
 check("pro can do everything", Feature.allCases.allSatisfy { PlanPolicy.isAllowed(.pro, $0) })
 
 // MARK: Coding language

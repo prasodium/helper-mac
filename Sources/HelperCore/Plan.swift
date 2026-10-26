@@ -33,8 +33,10 @@ public enum Feature: String, CaseIterable, Sendable {
 }
 
 public enum PlanPolicy {
-    /// Features available without an activation key.
-    public static let freeFeatures: Set<Feature> = [.ask, .mcq, .summarize, .debug, .brightness]
+    /// Features available without an activation key: all of them. Helper for
+    /// Mac has no paywall; `Plan` stays so licensing can be re-enabled by
+    /// shrinking this set.
+    public static let freeFeatures: Set<Feature> = Set(Feature.allCases)
 
     public static func isAllowed(_ plan: Plan, _ feature: Feature) -> Bool {
         plan == .pro || freeFeatures.contains(feature)

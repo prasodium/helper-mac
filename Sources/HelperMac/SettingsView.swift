@@ -9,7 +9,6 @@ struct SettingsView: View {
             APISettings().tabItem { Label("OpenAI", systemImage: "key") }
             LibrarySettings().tabItem { Label("Library", systemImage: "books.vertical") }
             TranslationSettings().tabItem { Label("Translation", systemImage: "captions.bubble") }
-            LicenseSettings().tabItem { Label("License", systemImage: "checkmark.seal") }
         }
         .frame(width: 520, height: 440)
     }
@@ -144,9 +143,6 @@ private struct LibrarySettings: View {
             if !state.libraryStatus.isEmpty {
                 Section { Text(state.libraryStatus).font(.callout).foregroundStyle(.secondary) }
             }
-            if state.plan == .free {
-                Section { Label("Resume, documents and projects are Pro features.", systemImage: "lock.fill").foregroundStyle(.orange) }
-            }
         }
         .formStyle(.grouped)
         .task { await state.refreshLibrary() }
@@ -187,47 +183,5 @@ private struct TranslationSettings: View {
             }
         }
         .formStyle(.grouped)
-    }
-}
-
-private struct LicenseSettings: View {
-    @Environment(AppState.self) private var state
-
-    var body: some View {
-        @Bindable var state = state
-        Form {
-            Section("Plan") {
-                LabeledContent("Current plan") {
-                    Text(state.plan == .pro ? "Pro" : "Free")
-                        .font(.caption.weight(.semibold)).padding(.horizontal, 8).padding(.vertical, 2)
-                        .background(state.plan == .pro ? Color.green.opacity(0.2) : Color.gray.opacity(0.2), in: Capsule())
-                }
-                if state.plan == .pro {
-                    if !state.licenseProduct.isEmpty { LabeledContent("Product", value: state.licenseProduct) }
-                    LabeledContent("Key") {
-                        HStack {
-                            Text(state.licenseKeyPreview).font(.system(.body, design: .monospaced))
-                            Button("Copy") { state.copyLicenseKey() }
-                        }
-                    }
-                    LabeledContent("This Mac", value: DeviceID.name())
-                    Button("Sign out of this Mac", role: .destructive) { Task { await state.deactivate() } }
-                    Text("Signing out frees the activation slot so you can use the key on another Mac.")
-                        .font(.caption).foregroundStyle(.secondary)
-                } else {
-                    HStack {
-                        Button("Enter activation key") { state.showLicenseEntry = true }.buttonStyle(.borderedProminent)
-                        Button("Get Pro") { state.openStore() }
-                    }
-                    Text("Free includes asking questions, MCQs, summaries and debugging. Pro adds screen capture, voice, live translation, your resume, documents and projects, and mock interviews.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Section {
-                Button("Help & guides") { state.openStore("docs") }.buttonStyle(.link)
-            }
-        }
-        .formStyle(.grouped)
-        .sheet(isPresented: $state.showLicenseEntry) { LicenseEntrySheet() }
     }
 }

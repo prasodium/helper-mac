@@ -10,22 +10,16 @@ the system Keychain, and a **~2.6 MB** download (the Electron app is ~200 MB).
 
 ## Features
 
-| | Free | Pro |
-|---|:--:|:--:|
-| Ask questions, solve MCQs, summarize, debug (typed or pasted) | ✓ | ✓ |
-| Window transparency, always-on-top | ✓ | ✓ |
-| Streaming answers with Markdown and copyable code blocks | ✓ | ✓ |
-| Capture a screen region, analyze the whole screen (ScreenCaptureKit) | | ✓ |
-| Scrolled capture: stitch a long page into one image | | ✓ |
-| Voice input (Quick Answer + Detailed Explanation) and read-aloud replies | | ✓ |
-| Live translation of meeting audio (system audio or microphone) | | ✓ |
-| Resume, document library (PDF/DOCX/TXT/MD) and GitHub projects as context | | ✓ |
-| Mock-interview practice with feedback | | ✓ |
-| Solve / Explain code quick actions | | ✓ |
+Every feature is available to everyone: no subscription, no activation key.
 
-Pro is unlocked by the same `HLP-XXXX-XXXX-XXXX` activation key as the Electron app
-(sold through [Helper Store](https://github.com/prasodium/helper-store); 1 payment = 1 device,
-7-day offline grace, device ID derived the same way so a Mac counts once).
+- Ask questions, solve MCQs, summarize, debug; Solve / Explain code quick actions
+- Streaming answers with Markdown and copyable code blocks
+- Capture a screen region, analyze the whole screen (ScreenCaptureKit), scrolled capture that stitches a long page
+- Voice input and read-aloud replies
+- Live translation of meeting audio (system audio or microphone)
+- Resume, document library (PDF/DOCX/TXT/MD) and GitHub projects as context
+- Mock-interview practice with feedback
+- Window transparency and always-on-top
 
 **Mock interview practice** replaces the live "answer the interviewer for me" mode of the Electron
 app: Helper plays the interviewer, asks one question at a time (tailored to your resume and projects),

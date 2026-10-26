@@ -28,12 +28,6 @@ struct MainView: View {
                 .help("Assistant answers your questions. Practice runs a mock interview with feedback.")
             }
             ToolbarItemGroup(placement: .primaryAction) {
-                if state.plan == .free {
-                    Button { state.upsellFeature = nil; state.showLicenseEntry = true } label: {
-                        Label("Go Pro", systemImage: "key.fill")
-                    }
-                    .help("Unlock every feature with an activation key")
-                }
                 Toggle(isOn: $alwaysOnTop) { Image(systemName: alwaysOnTop ? "pin.fill" : "pin") }
                     .toggleStyle(.button).help("Keep Helper above other windows")
                 Button { state.clearConversation() } label: { Image(systemName: "square.and.pencil") }
