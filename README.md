@@ -17,7 +17,7 @@ the system Keychain, and a **~2.6 MB** download (the Electron app is ~200 MB).
 | Streaming answers with Markdown and copyable code blocks | ✓ | ✓ |
 | Capture a screen region, analyze the whole screen (ScreenCaptureKit) | | ✓ |
 | Scrolled capture: stitch a long page into one image | | ✓ |
-| Voice input and read-aloud replies | | ✓ |
+| Voice input (Quick Answer + Detailed Explanation) and read-aloud replies | | ✓ |
 | Live translation of meeting audio (system audio or microphone) | | ✓ |
 | Resume, document library (PDF/DOCX/TXT/MD) and GitHub projects as context | | ✓ |
 | Mock-interview practice with feedback | | ✓ |
